@@ -12,16 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" StableLM model configuration """
+"""StableLM model configuration"""
 
 from ...configuration_utils import PretrainedConfig
 from ...utils import logging
 
 
 logger = logging.get_logger(__name__)
-
-
-from ..deprecated._archive_maps import STABLELM_PRETRAINED_CONFIG_ARCHIVE_MAP  # noqa: F401, E402
 
 
 class StableLmConfig(PretrainedConfig):
@@ -83,6 +80,11 @@ class StableLmConfig(PretrainedConfig):
             is an experimental feature, subject to breaking API changes in future versions.
         use_qkv_bias (`bool`, *optional*, defaults to `False`):
             Whether or not the model should use bias for qkv layers.
+        qk_layernorm (`bool`, *optional*, defaults to `False`):
+            Whether or not to normalize, per head, the Queries and Keys after projecting the hidden states.
+        use_parallel_residual (`bool`, *optional*, defaults to `False`):
+            Whether to use a "parallel" formulation in each Transformer layer, which can provide a slight training
+            speedup at large scales.
         hidden_dropout (`float`, *optional*, defaults to 0.0):
             The dropout ratio after applying the MLP to the hidden states.
         attention_dropout (`float`, *optional*, defaults to 0.0):
@@ -105,13 +107,39 @@ class StableLmConfig(PretrainedConfig):
 
     model_type = "stablelm"
     keys_to_ignore_at_inference = ["past_key_values"]
+    """
+        "attention_dropout": 0.0,
+    "bos_token_id": 100257,
+    "eos_token_id": 100257,
+    "hidden_act": "silu",
+    "hidden_dropout": 0.0,
+    "hidden_size": 2048,
+    "initializer_range": 0.02,
+    "intermediate_size": 5632,
+    "layer_norm_eps": 1e-05,
+    "max_position_embeddings": 4096,
+    "model_type": "stablelm",
+    "num_attention_heads": 32,
+    "num_hidden_layers": 24,
+    "num_key_value_heads": 32,
+    "partial_rotary_factor": 0.25,
+    "qk_layernorm": false,
+    "rope_scaling": null,
+    "rope_theta": 10000,
+    "tie_word_embeddings": false,
+    "torch_dtype": "float16",
+    "transformers_version": "4.42.0.dev0",
+    "use_cache": true,
+    "use_parallel_residual": false,
+    "use_qkv_bias": true,
+    "vocab_size": 100352"""
 
     def __init__(
         self,
-        vocab_size=50304,
-        intermediate_size=6912,
-        hidden_size=2560,
-        num_hidden_layers=32,
+        vocab_size=100352,
+        intermediate_size=5632,
+        hidden_size=2048,
+        num_hidden_layers=24,
         num_attention_heads=32,
         num_key_value_heads=32,
         hidden_act="silu",
@@ -123,11 +151,13 @@ class StableLmConfig(PretrainedConfig):
         rope_theta=10_000,
         rope_scaling=None,
         use_qkv_bias=False,
+        qk_layernorm=False,
+        use_parallel_residual=False,
         hidden_dropout=0.0,
         attention_dropout=0.0,
         partial_rotary_factor=0.25,
-        bos_token_id=0,
-        eos_token_id=0,
+        bos_token_id=100257,
+        eos_token_id=100257,
         **kwargs,
     ):
         self.vocab_size = vocab_size
@@ -146,6 +176,8 @@ class StableLmConfig(PretrainedConfig):
         self.rope_theta = rope_theta
         self.rope_scaling = rope_scaling
         self.use_qkv_bias = use_qkv_bias
+        self.qk_layernorm = qk_layernorm
+        self.use_parallel_residual = use_parallel_residual
         self.hidden_dropout = hidden_dropout
         self.attention_dropout = attention_dropout
         self.partial_rotary_factor = partial_rotary_factor
@@ -168,8 +200,7 @@ class StableLmConfig(PretrainedConfig):
 
         if not isinstance(self.rope_scaling, dict) or len(self.rope_scaling) != 2:
             raise ValueError(
-                "`rope_scaling` must be a dictionary with with two fields, `type` and `factor`, "
-                f"got {self.rope_scaling}"
+                "`rope_scaling` must be a dictionary with two fields, `type` and `factor`, " f"got {self.rope_scaling}"
             )
         rope_scaling_type = self.rope_scaling.get("type", None)
         rope_scaling_factor = self.rope_scaling.get("factor", None)
